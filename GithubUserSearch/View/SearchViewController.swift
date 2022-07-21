@@ -19,6 +19,8 @@ class SearchViewController: UIViewController {
     // - 사용자 인터렉션 대응 : input
     //      - 서치컨트롤러에서 텍스트를 가지고 -> 네트워크 요청
     
+    let network = NetworkService(configuration: .default)
+    
     @Published private(set) var users: [SearchResult] = []
     var subscription = Set<AnyCancellable>()
     
@@ -81,11 +83,7 @@ class SearchViewController: UIViewController {
                 snapshot.appendItems(users, toSection: .main)
                 self.datasource?.apply(snapshot)
             }.store(in: &subscription)
-        
-        
     }
-
-    
 }
 
 extension SearchViewController: UISearchResultsUpdating {
@@ -106,24 +104,37 @@ extension SearchViewController: UISearchBarDelegate {
         let params: [String:String] = ["q":keyword]
         let header: [String:String] = ["Content-Type":"application/json"]
         
-        var urlComponents = URLComponents(string: base + path)!
-        let queryItem = params.map { (key: String, value: String) in
-            return URLQueryItem(name: key, value: value)
-        }
-        urlComponents.queryItems = queryItem
+        let resource = Resource<SearchUserResponse>.init(base: base, path: path, params: params, header: header)
         
-        var request = URLRequest(url: urlComponents.url!)
-        header.forEach { (key: String, value: String) in
-            request.addValue(value, forHTTPHeaderField: key)
-        }
-        
-        URLSession.shared.dataTaskPublisher(for: request)
-            .map { $0.data } // data 받고
-            .decode(type: SearchUserResponse.self, decoder: JSONDecoder())
+        network.load(resource)
             .map { $0.items }
             .replaceError(with: []) // error에 대한 처리
             .receive(on: RunLoop.main)
             .assign(to: \.users, on: self)
             .store(in: &subscription)
+        
+        
+//===============================================================================
+//        var urlComponents = URLComponents(string: base + path)!
+//        let queryItem = params.map { (key: String, value: String) in
+//            return URLQueryItem(name: key, value: value)
+//        }
+//        urlComponents.queryItems = queryItem
+//
+//        var request = URLRequest(url: urlComponents.url!)
+//        header.forEach { (key: String, value: String) in
+//            request.addValue(value, forHTTPHeaderField: key)
+//        }
+        
+        
+//        URLSession.shared.dataTaskPublisher(for: request)
+//            .map { $0.data } // data 받고
+//            .decode(type: SearchUserResponse.self, decoder: JSONDecoder())
+//            .map { $0.items }
+//            .replaceError(with: []) // error에 대한 처리
+//            .receive(on: RunLoop.main)
+//            .assign(to: \.users, on: self)
+//            .store(in: &subscription)
+//===============================================================================
     }
 }
